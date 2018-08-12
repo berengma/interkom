@@ -92,7 +92,7 @@ minetest.register_chatcommand("interkom", {
 		  for k,v in pairs(lines) do
 		    minetest.chat_send_player(name,core.colorize(green,'Connected Server' .. k .. ': ')..core.colorize(orange,lines[k]))
 		    minetest.chat_send_player(name,core.colorize(green,"         Players:"))
-		    local pnames = interkom.readlines(wpath.."/"..interkom.name..".players")
+		    local pnames = interkom.readlines(wpath.."/"..lines[k]..".players")
 		    for l in pairs(pnames) do
 			minetest.chat_send_player(name,core.colorize(red,"                       "..pnames[l]))
 		    end
