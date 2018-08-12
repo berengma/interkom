@@ -97,6 +97,7 @@ minetest.register_chatcommand("interkom", {
 			minetest.chat_send_player(name,core.colorize(red,"                       "..pnames[l]))
 		    end
 		    pnames = {}
+		    minetest.chat_send_player(name,"\n\n")
 		  end
 		  
 		 
