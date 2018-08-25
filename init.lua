@@ -26,7 +26,6 @@ minetest.register_globalstep(function(dtime)
 		    local aktion = interkom.readlines(wpath.."/"..interkom.name..".action")
 		    if aktion and aktion ~= {} then
 			for i in pairs(aktion) do
-			    minetest.chat_send_all("Execute command: "..aktion[i])
 			    interkom.command(aktion[i])
 			    interkom.delete(wpath.."/"..interkom.name..".action",aktion[i])
 			end
