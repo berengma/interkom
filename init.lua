@@ -4,6 +4,10 @@ interkom = {}
 
 local path = minetest.get_modpath(minetest.get_current_modname())
 local wpath = minetest.get_worldpath().."/Lilly"
+local timer = 0
+local ctime = interkom.intervall or 5
+
+
 
 -- Textcolors
 local green = '#00FF00'
@@ -12,6 +16,40 @@ local orange = '#FF6700'
 
 
 dofile(path.."/settings.lua")
+
+
+-- global step for server action queue
+minetest.register_globalstep(function(dtime)
+	timer = timer + dtime;
+	if timer >= ctime then
+		if interkom.name then
+		    local aktion = interkom.readlines(wpath.."/"..interkom.name..".action")
+		    if aktion and aktion ~= {} then
+			for i in pairs(aktion) do
+			    minetest.chat_send_all("Execute command: "..aktion[i])
+			    interkom.command(aktion[i])
+			    interkom.delete(wpath.."/"..interkom.name..".action",aktion[i])
+			end
+		    end
+		timer = 0
+		end
+	end
+end)
+
+
+-- string split function
+function interkom.split(inputstr, sep)
+        if sep == nil then
+                sep = ","
+        end
+        local t={} 
+	local i=1
+        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+                t[i] = str
+                i = i + 1
+        end
+        return t
+end
 
 
 
@@ -29,7 +67,7 @@ end
 function interkom.readlines(file)
 	
 	if not interkom.file_exists(file) then 
-	    minetest.chat_send_all("File does not exist")
+	    --minetest.chat_send_all("File does not exist")
 	    return {}
 	end
 	
@@ -55,6 +93,7 @@ function interkom.delete(fname,data)
 end
 
 
+-- register/unregister server with name from settings.lua
 function interkom.server(modus)
 	local fname = wpath.."/Servers"
 	
@@ -70,6 +109,87 @@ function interkom.server(modus)
 		  
 end
 
+
+-- function checks if a certain player is online
+function interkom.playeronline(name,server)
+	  local pnames = interkom.readlines(wpath.."/"..server..".players")
+	  
+	  for l in pairs(pnames) do
+			if pnames[l] == name then return true end
+	  end
+		
+	  return false
+end
+
+
+-- function checks if a certain server is online
+function interkom.serveronline(server)
+	  local snames = interkom.readlines(wpath.."/Servers")
+	  
+	  for l in pairs(snames) do
+			if snames[l] == server then return true end
+	  end
+		
+	  return false
+end
+
+
+-- function to save servers actionqueue
+function interkom.saveAC(server,code)
+    	  local fname = wpath.."/"..server..".action"
+	  local f = io.open(fname, "a")
+	      f:write(code.."\n")
+	      f:close()
+end
+
+
+--function executing commands in actionqueue
+function interkom.command(code)
+      local perintah = interkom.split(code)
+      minetest.log("action","[Interkom] "..code)
+      
+      if perintah[1] == "MSG" then
+	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3]..": ")..core.colorize(orange,perintah[5]))
+      else
+	  minetest.chat_send_all(core.colorize(red,"<<unknown command in ActionQueue>>"))
+      end
+      
+end
+
+
+-- new chatcommand for private messages between servers
+minetest.register_chatcommand("pm", {
+      params ="<name,server,message>",
+      description = "Send a private message to player on other server",
+      privs = {interact = true},
+	func = function(name,text)
+	    local cmd = interkom.split(text)
+	    local pname = cmd[1]
+	    local sname = cmd[2]
+	    local message = cmd[3]
+	    
+	    if pname and sname and message then
+		
+		if  not interkom.serveronline(sname) then
+		    minetest.chat_send_player(name,core.colorize(red,"Server "..sname.." ist not online at the moment"))    
+		else
+		    if not interkom.playeronline(pname,sname) then
+			minetest.chat_send_player(name,core.colorize(red,"Player "..pname.."@"..sname.." is not online at the moment"))
+		    else
+		      --do this and that
+		      interkom.saveAC(sname,"MSG,"..name..","..interkom.name..","..pname..","..message)
+		      minetest.chat_send_player(name,core.colorize(green,">> Message send to: ")..core.colorize(orange,pname.."@"..sname))
+		    end
+		end
+	    else
+		minetest.chat_send_player(name,core.colorize(red,"Syntax error!  please use </pm playername,server,message>"))
+	    end
+	    
+	
+end,
+})
+
+      
 
 -- 
 minetest.register_chatcommand("interkom", {
