@@ -151,6 +151,7 @@ function interkom.command(code)
 	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3]..": ")..core.colorize(orange,perintah[5]))
       elseif perintah[1] == "GIV" then
 	interkom.checkstuff(perintah[4],perintah[5],false)
+	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3].." send you ")..core.colorize(orange,perintah[5]))
       
       else
 	  minetest.chat_send_all(core.colorize(red,"<<unknown command in ActionQueue>>"..dump(perintah)))
