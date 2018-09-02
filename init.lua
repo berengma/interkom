@@ -149,10 +149,38 @@ function interkom.command(code)
       
       if perintah[1] == "MSG" then
 	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3]..": ")..core.colorize(orange,perintah[5]))
+      elseif perintah[1] == "GIV" then
+	interkom.checkstuff(perintah[4],perintah[5],false)
+      
       else
-	  minetest.chat_send_all(core.colorize(red,"<<unknown command in ActionQueue>>"))
+	  minetest.chat_send_all(core.colorize(red,"<<unknown command in ActionQueue>>"..dump(perintah)))
       end
       
+end
+
+
+-- function to check if stuff is in inventory and valid
+function interkom.checkstuff(name,message,remove)
+      local player = minetest.get_player_by_name(name)
+      if not player then return false end
+      local inv = player:get_inventory()
+	if remove then
+	    if inv:contains_item("main",message) then
+		inv:remove_item("main",message)
+		return true
+	    end
+	else
+	  if inv:room_for_item("main",message) then
+	    inv:add_item("main",message)
+	    return true
+	  else
+	    local pos = player:get_pos()
+	    minetest.spawn_item(pos, message)
+	    minetest.chat_send_player(name,core.colorize(orange,"Inventory full, Items(s) dropped at your position"))
+	    return true
+	  end
+	end
+      return false
 end
 
 
@@ -188,7 +216,49 @@ minetest.register_chatcommand("pm", {
 end,
 })
 
-      
+ -- new chatcommand for sending stuff between servers
+minetest.register_chatcommand("stuff", {
+      params ="<name,server,stuff>",
+      description = "Send your stuff to a player on an other server",
+      privs = {interact = true},
+	func = function(name,text)
+	    local cmd = interkom.split(text)
+	    local pname = cmd[1]
+	    local sname = cmd[2]
+	    local message = cmd[3]
+	    
+	    if pname and sname and message then
+	      local supported = string.match(message,"default:")
+		
+		if  not interkom.serveronline(sname) then
+		    minetest.chat_send_player(name,core.colorize(red,"Server "..sname.." ist not online at the moment"))    
+		else
+		    if not interkom.playeronline(pname,sname) then
+			minetest.chat_send_player(name,core.colorize(red,"Player "..pname.."@"..sname.." is not online at the moment"))
+		    else
+		      if interkom.checkstuff(name,message,true)  and supported then
+			  --do this and that
+			  interkom.saveAC(sname,"GIV,"..name..","..interkom.name..","..pname..","..message)
+			  minetest.chat_send_player(name,core.colorize(green,">> Stuff send to: ")..core.colorize(orange,pname.."@"..sname))
+		      else
+			if supported then
+			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You do not own ")..core.colorize(orange,message))
+			else
+			  minetest.chat_send_player(name,core.colorize(orange,message)..core.colorize(green," is not supported so far. Please only use stuff from: <default:>"))
+			end
+		      end
+			
+		    end
+		end
+	    else
+	    
+		minetest.chat_send_player(name,core.colorize(red,"Syntax error!  please use </stuff playername,server,stuff>"))
+	      
+	    end
+	    
+	
+end,
+})     
 
 -- 
 minetest.register_chatcommand("interkom", {
