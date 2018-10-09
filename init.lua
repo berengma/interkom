@@ -234,6 +234,14 @@ minetest.register_chatcommand("stuff", {
 	    
 	    if pname and sname and message then
 	      local supported = string.match(message,"default:")
+	      
+		  -- check for unusual stacksizes
+		  stack = ItemStack(message)
+		  if stack:get_count() > interkom.maxstack then
+		      stack:set_count(interkom.maxstack)
+		      message = stack:to_string()
+		  end
+	     	      
 		
 		if  not interkom.serveronline(sname) then
 		    minetest.chat_send_player(name,core.colorize(red,"Server "..sname.." ist not online at the moment"))    
