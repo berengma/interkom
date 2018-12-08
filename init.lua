@@ -38,15 +38,16 @@ end)
 
 -- string split function
 function interkom.split(inputstr, sep)
-        if sep == nil then
-                sep = ","
-        end
+	
+        if not sep then sep = "," end
+        
         local t={} 
 	local i=1
         for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
                 t[i] = str
                 i = i + 1
         end
+	
         return t
 end
 
@@ -148,7 +149,20 @@ function interkom.command(code)
       minetest.log("action","[Interkom] "..code)
       
       if perintah[1] == "MSG" then
-	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3]..": ")..core.colorize(orange,perintah[5]))
+	
+	    -- this checks for komma in message and revokes splitting
+	    local message = ""
+	    local i = 5    
+	    while perintah[i] do
+	      if i == 5 then
+		    message = message..perintah[i]
+	      else
+		    message = message..","..perintah[i]
+	      end
+	      i = i + 1
+	    end
+	    
+	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3]..": ")..core.colorize(orange,message))
       
       elseif perintah[1] == "GIV" then
 	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3].." send you ")..core.colorize(orange,perintah[5]))
@@ -198,7 +212,17 @@ minetest.register_chatcommand("pm", {
 	    local cmd = interkom.split(text)
 	    local pname = cmd[1]
 	    local sname = cmd[2]
-	    local message = cmd[3]
+	    local message = ""
+	    local i = 3
+	    
+	    while cmd[i] do
+	      if i == 3 then
+		    message = message..cmd[i]
+	      else
+		    message = message..","..cmd[i]
+	      end
+	      i = i + 1
+	    end
 	    
 	    if pname and sname and message then
 		
@@ -237,8 +261,8 @@ minetest.register_chatcommand("stuff", {
 	      
 		  -- check for unusual stacksizes
 		  stack = ItemStack(message)
-		  if stack:get_count() > interkom.maxstack then
-		      stack:set_count(interkom.maxstack)
+		  if stack:get_count() > stack:get_stack_max() then
+		      stack:set_count(stack:get_stack_max())
 		      message = stack:to_string()
 		  end
 	     	      
