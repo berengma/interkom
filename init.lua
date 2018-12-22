@@ -165,8 +165,15 @@ function interkom.command(code)
 	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3]..": ")..core.colorize(orange,message))
       
       elseif perintah[1] == "GIV" then
-	minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3].." send you ")..core.colorize(orange,perintah[5]))
-	interkom.checkstuff(perintah[4],perintah[5],false)
+	local stack = ItemStack(perintah[5])
+	if stack:is_known() then
+	      minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3].." send you ")..core.colorize(orange,perintah[5]))
+	      interkom.checkstuff(perintah[4],perintah[5],false)
+	else
+	      minetest.chat_send_player(perintah[4],core.colorize(red,">>> CUSTOMS REJECTED: ")..core.colorize(orange,perintah[5])..core.colorize(green," from "..perintah[2].."@"..perintah[3]))
+	      interkom.saveAC(perintah[3],"GIV,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]..","..perintah[5])
+	      interkom.saveAC(perintah[3],"MSG,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]",".."Your stuff was rejected")
+	end
       
       elseif perintah[1] == "KIK" then
 	minetest.kick_player(perintah[4],perintah[5])
@@ -257,10 +264,10 @@ minetest.register_chatcommand("stuff", {
 	    local message = cmd[3]
 	    
 	    if pname and sname and message then
-	      local supported = string.match(message,"default:")
+	      local supported = string.match(message,":")
 	      
 		  -- check for unusual stacksizes
-		  stack = ItemStack(message)
+		  local stack = ItemStack(message)
 		  if stack:get_count() > stack:get_stack_max() then
 		      stack:set_count(stack:get_stack_max())
 		      message = stack:to_string()
@@ -281,7 +288,7 @@ minetest.register_chatcommand("stuff", {
 			if supported then
 			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You do not own ")..core.colorize(orange,message))
 			else
-			  minetest.chat_send_player(name,core.colorize(orange,message)..core.colorize(green," is not supported so far. Please only use stuff from: <default:>"))
+			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(orange,"> "..message.." <")..core.colorize(green," -- Enter stackname like modname:name  (example: default:stone)"))
 			end
 		      end
 			
