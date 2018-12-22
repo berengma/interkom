@@ -172,7 +172,7 @@ function interkom.command(code)
 	else
 	      minetest.chat_send_player(perintah[4],core.colorize(red,">>> CUSTOMS REJECTED: ")..core.colorize(orange,perintah[5])..core.colorize(green," from "..perintah[2].."@"..perintah[3]))
 	      interkom.saveAC(perintah[3],"GIV,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]..","..perintah[5])
-	      interkom.saveAC(perintah[3],"MSG,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]",".."Your stuff was rejected")
+	      interkom.saveAC(perintah[3],"MSG,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]..",".."Your stuff was rejected")
 	end
       
       elseif perintah[1] == "KIK" then
