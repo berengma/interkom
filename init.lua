@@ -192,8 +192,14 @@ function interkom.checkstuff(name,message,remove)
       local inv = player:get_inventory()
 	if remove then
 	    if inv:contains_item("main",message) then
-		inv:remove_item("main",message)
-		return true
+		local cstack = inv:remove_item("main",message)
+		local meta = minetest.deserialize(cstack:get_metadata()) or nil
+		if meta then
+		    inv:add_item("main",cstack)
+		    return false
+		else
+		    return true
+		end
 	    end
 	else
 	  if inv:room_for_item("main",message) then
@@ -268,11 +274,12 @@ minetest.register_chatcommand("stuff", {
 	      
 		  -- check for unusual stacksizes
 		  local stack = ItemStack(message)
+		  local tool = false
+		  if stack:get_stack_max() == 1 then tool = true end
 		  if stack:get_count() > stack:get_stack_max() then
 		      stack:set_count(stack:get_stack_max())
 		      message = stack:to_string()
 		  end
-	     	      
 		
 		if  not interkom.serveronline(sname) then
 		    minetest.chat_send_player(name,core.colorize(red,"Server "..sname.." ist not online at the moment"))    
@@ -280,15 +287,19 @@ minetest.register_chatcommand("stuff", {
 		    if not interkom.playeronline(pname,sname) then
 			minetest.chat_send_player(name,core.colorize(red,"Player "..pname.."@"..sname.." is not online at the moment"))
 		    else
-		      if interkom.checkstuff(name,message,true)  and supported then
+		      if interkom.checkstuff(name,message,true)  and supported and not tool then
 			  --do this and that
 			  interkom.saveAC(sname,"GIV,"..name..","..interkom.name..","..pname..","..message)
 			  minetest.chat_send_player(name,core.colorize(green,">> Stuff send to: ")..core.colorize(orange,pname.."@"..sname))
 		      else
-			if supported then
-			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You do not own ")..core.colorize(orange,message))
+			if supported and not tool then
+			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You do not have (or contains  meta) ")..core.colorize(orange,message))
 			else
-			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(orange,"> "..message.." <")..core.colorize(green," -- Enter stackname like modname:name  (example: default:stone)"))
+			  if not tool then
+			      minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(orange,"> "..message.." <")..core.colorize(green," -- Enter stackname like modname:name  (example: default:stone)"))
+			  else
+			      minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You can not send tools"))
+			  end
 			end
 		      end
 			
