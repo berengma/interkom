@@ -1,11 +1,21 @@
--- New and freshly presented by Gundul: Lilly - Jungle Interkom
+--##################################################
+-- New and freshly presented by Gundul: Interkom   
+-- Communication and stuff exchange between servers
+--##################################################
+
 
 interkom = {}
+
+local storage = minetest.get_mod_storage()
+interkom.whitelist = {}
+interkom.tempcheck = {}
 
 local path = minetest.get_modpath(minetest.get_current_modname())
 local wpath = minetest.get_worldpath().."/Lilly"
 local timer = 0
 local ctime = interkom.intervall or 5
+local blwait = interkom.blacklistTO or 60
+
 
 
 
@@ -16,6 +26,7 @@ local orange = '#FF6700'
 
 
 dofile(path.."/settings.lua")
+
 
 
 -- global step for server action queue
@@ -34,6 +45,24 @@ minetest.register_globalstep(function(dtime)
 		end
 	end
 end)
+
+
+-- load whitelist from file
+function interkom.open()
+
+	local load = storage:to_table()
+	interkom.whitelist = load.fields
+
+end 
+
+
+-- save whitelist to file
+function interkom.save()
+
+	storage:from_table({fields=interkom.whitelist})
+	
+end 
+
 
 
 -- string split function
@@ -167,12 +196,26 @@ function interkom.command(code)
       elseif perintah[1] == "GIV" then
 	local stack = ItemStack(perintah[5])
 	if stack:is_known() then
-	      minetest.chat_send_player(perintah[4],core.colorize(green,perintah[2].."@"..perintah[3].." send you ")..core.colorize(orange,perintah[5]))
+	  local checkhere = minetest.encode_base64(perintah[4]..perintah[2]..perintah[3])
+	  if interkom.whitelist[checkhere] then
+	      minetest.chat_send_player(perintah[4],core.colorize(orange,perintah[2].."@"..perintah[3])..core.colorize(green," send you ")..core.colorize(orange,perintah[5]))
 	      interkom.checkstuff(perintah[4],perintah[5],false)
+	  else
+	      local name = perintah[4]
+	      minetest.chat_send_player(perintah[4],core.colorize(orange,perintah[2].."@"..perintah[3])..core.colorize(green," wants to send you ")..core.colorize(orange,perintah[5]))
+	      minetest.chat_send_player(perintah[4],core.colorize(green,"You have ")..core.colorize(orange,blwait)..core.colorize(green," seconds to enter ")..core.colorize(orange,"/ok")..core.colorize(green," to accept and to whitelist ")..core.colorize(orange,perintah[2].."@"..perintah[3]))
+	      interkom.tempcheck[perintah[4]]={sender = perintah[2],server = perintah[3],stuff = perintah[5]}
+	      minetest.after(blwait, function(name)
+	      if interkom.tempcheck[name] then
+			interkom.tempcheck[name] = nil
+		end
+	      end, name)
+	  end
+	      interkom.saveAC(perintah[3],"MSG,".."Customs,"..interkom.name..","..perintah[2]..",".." >OK<")
 	else
 	      minetest.chat_send_player(perintah[4],core.colorize(red,">>> CUSTOMS REJECTED: ")..core.colorize(orange,perintah[5])..core.colorize(green," from "..perintah[2].."@"..perintah[3]))
-	      interkom.saveAC(perintah[3],"GIV,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]..","..perintah[5])
-	      interkom.saveAC(perintah[3],"MSG,"..interkom.name.."-Customs,"..interkom.name..","..perintah[2]..",".."Your stuff was rejected")
+	      interkom.saveAC(perintah[3],"GIV,".."Customs,"..interkom.name..","..perintah[2]..","..perintah[5])
+	      interkom.saveAC(perintah[3],"MSG,".."Customs,"..interkom.name..","..perintah[2]..",".."Stuff >REJECTED<")
 	end
       
       elseif perintah[1] == "KIK" then
@@ -354,6 +397,58 @@ minetest.register_chatcommand("interkom", {
 	end,
 })
 
+
+-- chatcommand to accept and whitelist other players stuff
+minetest.register_chatcommand("ok", {
+	  params = "",
+	  description = "Accepts stuff and whitelists sending player",
+	  privs = {interact = true},
+	  func = function(name)
+	  
+		if interkom.tempcheck[name] then 
+		      local sender = interkom.tempcheck[name].sender
+		      local server = interkom.tempcheck[name].server
+		      local stuff = interkom.tempcheck[name].stuff
+		      local checkhere = minetest.encode_base64(name..sender..server)
+		      interkom.checkstuff(name,stuff,false)
+		      minetest.chat_send_player(name,core.colorize(green,"## ACCEPTED ")..core.colorize(orange,sender.."@"..server)..core.colorize(green," added to whitelist"))
+		      interkom.whitelist[checkhere] = "1"
+		      interkom.tempcheck[name] = nil
+		      interkom.save()
+		else
+		      minetest.chat_send_player(name,core.colorize(orange,"## nothing to do ##"))
+		end
+end,
+})
+
+
+-- chatcommand to blacklist players from sending stuff
+minetest.register_chatcommand("bl", {
+	  params = "<playername>@<servername>",
+	  description = "added to blacklist, cannot send stuff to you anymore without asking",
+	  privs = {interact = true},
+	  func = function(name,arg)
+	      if arg then
+		  local cmd = interkom.split(arg,"@")
+		  if #cmd > 1 then
+		      local checkhere = minetest.encode_base64(name..cmd[1]..cmd[2])
+		      if interkom.whitelist[checkhere] then
+			 interkom.whitelist[checkhere] = nil
+			 minetest.chat_send_player(name, core.colorize(green,">>> "..cmd[1].."@"..cmd[2].." blacklisted !"))
+			 interkom.save()
+		      else
+			 minetest.chat_send_player(name, core.colorize(orange,">>> "..cmd[1].."@"..cmd[2].." unknown !"))
+		      end
+		  else
+		      minetest.chat_send_player(name,core.colorize(orange,"## Syntax Error, use /bl playername@servername"))
+		  end
+	      end
+end,
+})
+		
+	  
+	  
+	  
 minetest.register_on_joinplayer(function(player)
 	  local fname = wpath.."/"..interkom.name..".players"
 	  local f = io.open(fname, "a")
@@ -371,6 +466,7 @@ end)
 
 -- delete Server from list when it shutdowns 
 minetest.register_on_shutdown(function()
+    interkom.save()
     interkom.server(false)
     os.remove(wpath.."/"..interkom.name..".players")
 end)
@@ -385,4 +481,5 @@ if interkom.serveronline(interkom.name) then
 end
 
 interkom.server(true)
+interkom.open()
 
