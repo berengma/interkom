@@ -323,6 +323,9 @@ minetest.register_chatcommand("stuff", {
 		      stack:set_count(stack:get_stack_max())
 		      message = stack:to_string()
 		  end
+		  
+		  --check valid stacknames
+		  if stack:get_name() == "" then supported = false end
 		
 		if  not interkom.serveronline(sname) then
 		    minetest.chat_send_player(name,core.colorize(red,"Server "..sname.." ist not online at the moment"))    
@@ -331,7 +334,6 @@ minetest.register_chatcommand("stuff", {
 			minetest.chat_send_player(name,core.colorize(red,"Player "..pname.."@"..sname.." is not online at the moment"))
 		    else
 		      if interkom.checkstuff(name,message,true)  and supported and not tool then
-			  --do this and that
 			  interkom.saveAC(sname,"GIV,"..name..","..interkom.name..","..pname..","..message)
 			  minetest.chat_send_player(name,core.colorize(green,">> Stuff send to: ")..core.colorize(orange,pname.."@"..sname))
 		      else
@@ -339,7 +341,7 @@ minetest.register_chatcommand("stuff", {
 			  minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You do not have (or contains  meta) ")..core.colorize(orange,message))
 			else
 			  if not tool then
-			      minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(orange,"> "..message.." <")..core.colorize(green," -- Enter stackname like modname:name  (example: default:stone)"))
+			      minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(orange,"> "..message.." <")..core.colorize(green," -- Enter stackname like modname:name # (example: default:stone 25)"))
 			  else
 			      minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You can not send tools"))
 			  end
