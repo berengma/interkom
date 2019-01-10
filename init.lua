@@ -453,9 +453,9 @@ end,
 	  
 minetest.register_on_joinplayer(function(player)
 	  local fname = wpath.."/"..interkom.name..".players"
-	  local f = io.open(fname, "a")
-	      f:write(player:get_player_name().."\n")
-	      f:close()
+	  local input = interkom.readlines(fname)
+	      table.insert(input,player:get_player_name().."\n")
+	      minetest.safe_file_write(fname, table.concat(input, "\n"))
 end)
 
 
@@ -482,6 +482,8 @@ if interkom.serveronline(interkom.name) then
     os.remove(wpath.."/"..interkom.name..".players")
 end
 
+
+-- start mod by registering server
 interkom.server(true)
 interkom.open()
 
