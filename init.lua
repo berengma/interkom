@@ -112,13 +112,13 @@ end
 -- delete line with "data" from file fname
 function interkom.delete(fname,data)
 	      local input = interkom.readlines(fname)
-	      local f = io.open(fname, "w")
+	      
 	      for i in pairs(input) do
-		  if input[i] ~= data then
-		      f:write(input[i].."\n")
+		  if input[i] == data then
+		      table.remove(input,i)
 		  end
 	      end
-	      f:close()
+	      minetest.safe_file_write(fname,  table.concat(input, "\n"))
 end
 
 
@@ -128,9 +128,9 @@ function interkom.server(modus)
 	
 	if modus then
 	
-	      local f = io.open(fname, "a")
-	      f:write(interkom.name.."\n")
-	      f:close()
+	      local input = interkom.readlines(fname)
+	      table.insert(input,interkom.name.."\n")
+	      minetest.safe_file_write(fname, table.concat(input, "\n"))
 	else
 	  
 	  interkom.delete(fname,interkom.name)
@@ -166,9 +166,9 @@ end
 -- function to save servers actionqueue
 function interkom.saveAC(server,code)
     	  local fname = wpath.."/"..server..".action"
-	  local f = io.open(fname, "a")
-	      f:write(code.."\n")
-	      f:close()
+	  local input = interkom.readlines(fname)
+	      table.insert(input,code.."\n")
+	      minetest.safe_file_write(fname, table.concat(input, "\n"))
 end
 
 
