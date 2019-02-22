@@ -9,6 +9,8 @@ interkom = {}
 local storage = minetest.get_mod_storage()
 interkom.whitelist = {}
 interkom.tempcheck = {}
+interkom.playerselect = {}
+interkom.serverselect = {}
 
 local path = minetest.get_modpath(minetest.get_current_modname())
 local wpath = minetest.get_worldpath().."/Lilly"
@@ -23,6 +25,7 @@ local blwait = interkom.blacklistTO or 60
 local green = '#00FF00'
 local red = '#FF0000'
 local orange = '#FF6700'
+local formcolor = '#000000'
 
 
 dofile(path.."/settings.lua")
@@ -68,19 +71,182 @@ end
 -- string split function
 function interkom.split(inputstr, sep)
 	
-        if not sep then sep = "," end
+		if not sep then sep = "," end
         
-        local t={} 
-	local i=1
-        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-                t[i] = str
-                i = i + 1
-        end
+		local t={} 
+		local i=1
+		for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+			t[i] = str
+			i = i + 1
+		end
 	
-        return t
+		return t
 end
 
 
+-- function to show trading gui
+function interkom.gui(playername,selected_server,player)
+	local file = wpath.."/Servers"
+	local lines,liststr = interkom.readlines(file)
+	local playerlist = ""
+	local plines = {}
+	
+	if not selected_server then 
+		selected_server = lines[1] 
+		interkom.serverselect[playername] = lines[1]
+	end
+	
+	if interkom.serveronline(selected_server) then
+		local file = wpath.."/"..selected_server..".players"
+		plines,playerlist = interkom.readlines(file)
+	end
+	
+
+	minetest.show_formspec(playername, "interkom:tradegui",
+	"size[8,8.5;]"..
+	"label[0,-0.1;"..core.colorize(orange,"Connected Servers").."]"..
+	"label[5.3,-0.1;"..core.colorize(orange,"Connected Players").."]"..
+	"textlist[0,0.3;2.5,3;selected_server;"..liststr..";selected;false]"..
+	"list[current_player;main;0,4.5;8,4;]"..
+	"button[3,2.5;2,0.5;send;Send]"..
+	"button_exit[3,3.5;2,0.5;exit;Close]"..
+	"list[detached:"..playername.."_interkom;myinterkom;3,0;2,2;]"..
+	"textlist[5.3,0.3;2.5,3;selected_player;"..playerlist..";selectedpl;false]"
+	)
+end
+
+
+-- formspec interpretation
+minetest.register_on_player_receive_fields(function(player, formname, fields)
+	if formname == "interkom:tradegui" and player then -- The form name and player must be online
+		local file = wpath.."/Servers"
+		local lines,liststr = interkom.readlines(file)
+		local playerlist = ""
+		local plines = {}
+		local myname = player:get_player_name()
+		local event = minetest.explode_textlist_event(fields.name)  -- get values of what was clicked
+		
+		--minetest.chat_send_all(dump(fields))
+		
+		    
+		-- button close is pressed
+		if fields.exit or fields.quit then
+			local inv = minetest.get_inventory({type="detached", name=myname.."_interkom" })
+			local pinv = player:get_inventory()
+			for sec = 1,5,1 do
+				for j = 1,4,1 do
+					local stack = inv:get_stack("myinterkom", j)
+					local pstack = inv:remove_item("myinterkom",stack)
+					pinv:add_item("main", pstack)
+				end
+			end
+			
+			return false
+		end
+		
+		-- button Send is pressed
+		if fields.send then
+			if not interkom.playerselect[myname] or not interkom.serverselect[myname] then 
+				minetest.chat_send_player(myname,core.colorize(red,"ERROR: ")..core.colorize(green," No player and/or server selected"))
+				return false 
+			end
+			local inv = minetest.get_inventory({type="detached", name=myname.."_interkom" })
+			
+			for sec = 1,5,1 do
+			for i = 1,4,1 do
+				local stack = inv:get_stack("myinterkom", i)
+				local meta = minetest.deserialize(stack:get_metadata()) or nil
+				local stackname = stack:get_name().." "..stack:get_count()
+				if stackname ~= " 0" and not meta then
+					if interkom.send_stuff(myname,interkom.playerselect[myname],interkom.serverselect[myname],stackname) then
+						inv:remove_item("myinterkom",stackname)
+					end
+				end
+			end
+			end
+		return false
+		end
+		
+		-- select server from the list
+		if fields.selected_server then
+			local server = interkom.split(fields.selected_server,":")
+			if not server then return end
+			if server[1] == "CHG" then
+				local num = tonumber(server[2])
+				interkom.serverselect[myname] = lines[num]
+				interkom.gui(myname,lines[num],player)
+			end
+		end
+		
+		-- select player from the list
+		if fields.selected_player then
+			local player = interkom.split(fields.selected_player,":")
+			if not player then return end
+			if interkom.serverselect[myname] then
+				file = wpath.."/"..interkom.serverselect[myname]..".players"
+				plines,playerlist = interkom.readlines(file)
+			end
+		
+			if player[1] == "CHG" then
+				local num = tonumber(player[2])
+				interkom.playerselect[myname] = plines[num]
+				interkom.gui(myname,interkom.serverselect[myname],plines[num])
+			end
+		end
+	end
+end)
+
+
+-- function to send stuff
+function interkom.send_stuff(name,pname,sname,message)
+	
+	    if pname and sname and message then
+	      local supported = true
+	      
+		  -- check for unusual stacksizes
+		  local stack = ItemStack(message)
+		  local tool = false
+		  if stack:get_stack_max() == 1 then tool = true end
+		  if stack:get_count() > stack:get_stack_max() then
+		      stack:set_count(stack:get_stack_max())
+		      message = stack:to_string()
+		  end
+		  
+		  --check valid stacknames
+		if stack:get_name() == "" then supported = false end
+		
+		if  not interkom.serveronline(sname) then
+		    minetest.chat_send_player(name,core.colorize(red,"Server "..sname.." ist not online at the moment"))
+		    return false
+		else
+		    if not interkom.playeronline(pname,sname) then
+			minetest.chat_send_player(name,core.colorize(red,"Player "..pname.."@"..sname.." is not online at the moment"))
+			return false
+			
+		    else
+				if supported and not tool then
+				interkom.saveAC(sname,"GIV,"..name..","..interkom.name..","..pname..","..message)
+				minetest.chat_send_player(name,core.colorize(green,">> Stuff send to: ")..core.colorize(orange,pname.."@"..sname))
+				return true
+				else
+					if supported and not tool then
+					minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You do not have (or contains  meta) ")..core.colorize(orange,message))
+					return false
+					else
+						if not tool then
+						minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(orange,"> "..message.." <")..core.colorize(green," -- Enter stackname like modname:name # (example: default:stone 25)"))
+						return false
+						else
+							minetest.chat_send_player(name,core.colorize(red,">> ERROR: ")..core.colorize(green,"You can not send tools"))
+							return false
+						end
+					end
+				end
+		    end
+		end
+	    end
+end    
+	
 
 -- checks if file is available
 function interkom.file_exists(file)
@@ -101,24 +267,31 @@ function interkom.readlines(file)
 	end
 	
 	local lines = {}
+	local liststr = ""
 	
-	for line in io.lines(file) do 
-	  lines[#lines + 1] = line
+	
+	for line in io.lines(file) do
+		lines[#lines + 1] = line
+		if #lines > 1 then
+			liststr = liststr..","..line
+		else
+			liststr = liststr..line
+		end
 	end
-	return lines
+	return lines,liststr
 end
 
 
 -- delete line with "data" from file fname
 function interkom.delete(fname,data)
 	      local input = interkom.readlines(fname)
-	      local f = io.open(fname, "w")
+	      
 	      for i in pairs(input) do
-		  if input[i] ~= data then
-		      f:write(input[i].."\n")
+		  if input[i] == data then
+		      table.remove(input,i)
 		  end
 	      end
-	      f:close()
+	      minetest.safe_file_write(fname,  table.concat(input, "\n"))
 end
 
 
@@ -128,9 +301,9 @@ function interkom.server(modus)
 	
 	if modus then
 	
-	      local f = io.open(fname, "a")
-	      f:write(interkom.name.."\n")
-	      f:close()
+	      local input = interkom.readlines(fname)
+	      table.insert(input,interkom.name.."\n")
+	      minetest.safe_file_write(fname, table.concat(input, "\n"))
 	else
 	  
 	  interkom.delete(fname,interkom.name)
@@ -166,9 +339,9 @@ end
 -- function to save servers actionqueue
 function interkom.saveAC(server,code)
     	  local fname = wpath.."/"..server..".action"
-	  local f = io.open(fname, "a")
-	      f:write(code.."\n")
-	      f:close()
+	  local input = interkom.readlines(fname)
+	      table.insert(input,code.."\n")
+	      minetest.safe_file_write(fname, table.concat(input, "\n"))
 end
 
 
@@ -229,7 +402,7 @@ end
 
 
 -- function to check if stuff is in inventory and valid
-function interkom.checkstuff(name,message,remove)
+function interkom.checkstuff(name,message,remove,gui)
       local player = minetest.get_player_by_name(name)
       if not player then return false end
       local inv = player:get_inventory()
@@ -311,6 +484,10 @@ minetest.register_chatcommand("stuff", {
 	    local pname = cmd[1]
 	    local sname = cmd[2]
 	    local message = cmd[3]
+	    if name then 
+		    interkom.gui(name,interkom.serverselect[name],interkom.playerselect[name])
+		    return
+	    end
 	    
 	    if pname and sname and message then
 	      local supported = string.match(message,":")
@@ -452,10 +629,24 @@ end,
 	  
 	  
 minetest.register_on_joinplayer(function(player)
-	  local fname = wpath.."/"..interkom.name..".players"
-	  local f = io.open(fname, "a")
-	      f:write(player:get_player_name().."\n")
-	      f:close()
+	local fname = wpath.."/"..interkom.name..".players"
+	local input = interkom.readlines(fname)
+	table.insert(input,player:get_player_name().."\n")
+	minetest.safe_file_write(fname, table.concat(input, "\n"))
+	-- new inventory for sending stuff
+	local inv = minetest.create_detached_inventory(player:get_player_name().."_interkom", {
+		allow_move = function(inv, from_list, from_index, to_list, to_index, count, player)
+					return 1024
+		end,
+		allow_put = function(inv, listname, index, stack, player) 
+					return 1024
+		end,
+		allow_take = function(inv, listname, index, stack, player) 
+					return 1024
+		end,
+		})
+	inv:set_size("myinterkom",4)
+		 
 end)
 
 
@@ -482,6 +673,8 @@ if interkom.serveronline(interkom.name) then
     os.remove(wpath.."/"..interkom.name..".players")
 end
 
+
+-- start mod by registering server
 interkom.server(true)
 interkom.open()
 
