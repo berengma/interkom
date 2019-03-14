@@ -21,6 +21,7 @@ local blwait = interkom.blacklistTO or 60
 
 
 
+
 -- Textcolors
 local green = '#00FF00'
 local red = '#FF0000'
@@ -375,13 +376,30 @@ function interkom.command(code)
 	      interkom.checkstuff(perintah[4],perintah[5],false)
 	  else
 	      local name = perintah[4]
-	      minetest.chat_send_player(perintah[4],core.colorize(orange,perintah[2].."@"..perintah[3])..core.colorize(green," wants to send you ")..core.colorize(orange,perintah[5]))
-	      minetest.chat_send_player(perintah[4],core.colorize(green,"You have ")..core.colorize(orange,blwait)..core.colorize(green," seconds to enter ")..core.colorize(orange,"/ok")..core.colorize(green," to accept and to whitelist ")..core.colorize(orange,perintah[2].."@"..perintah[3]))
-	      interkom.tempcheck[perintah[4]]={sender = perintah[2],server = perintah[3],stuff = perintah[5]}
+		 local invloop = 1
+		 if not interkom.tempcheck[name] then
+			 interkom.tempcheck[name] = {}
+		 end
+		 
+		 if not interkom.tempcheck[name][1] then
+			minetest.chat_send_player(perintah[4],core.colorize(red, ">>> ")..core.colorize(green,"You have ")..core.colorize(orange,blwait)..core.colorize(green," seconds to enter ")..core.colorize(orange,"/ok")..core.colorize(green," to accept and to whitelist ")..core.colorize(orange,perintah[2].."@"..perintah[3])..core.colorize(red, " <<<"))
+		 end
+		 
+		 minetest.chat_send_player(perintah[4],core.colorize(orange,perintah[2].."@"..perintah[3])..core.colorize(green," wants to send you ")..core.colorize(orange,perintah[5]))
+		 
+		 while interkom.tempcheck[name][invloop] do
+			invloop = invloop + 1 
+		 end
+	      
+		 interkom.tempcheck[name][invloop]={sender = perintah[2],server = perintah[3],stuff = perintah[5]}
 	      minetest.after(blwait, function(name)
-	      if interkom.tempcheck[name] then
-			interkom.tempcheck[name] = nil
-		end
+				if interkom.tempcheck[name][1] then
+					local count = 1
+					while interkom.tempcheck[name][count] do
+						interkom.tempcheck[name][count] = nil
+						count = count +1
+					end
+				end
 	      end, name)
 	  end
 	      interkom.saveAC(perintah[3],"MSG,".."Customs,"..interkom.name..","..perintah[2]..",".." >OK<")
@@ -584,18 +602,28 @@ minetest.register_chatcommand("ok", {
 	  privs = {interact = true},
 	  func = function(name)
 	  
-		if interkom.tempcheck[name] then 
-		      local sender = interkom.tempcheck[name].sender
-		      local server = interkom.tempcheck[name].server
-		      local stuff = interkom.tempcheck[name].stuff
-		      local checkhere = minetest.encode_base64(name..sender..server)
-		      interkom.checkstuff(name,stuff,false)
-		      minetest.chat_send_player(name,core.colorize(green,"## ACCEPTED ")..core.colorize(orange,sender.."@"..server)..core.colorize(green," added to whitelist"))
-		      interkom.whitelist[checkhere] = "1"
-		      interkom.tempcheck[name] = nil
-		      interkom.save()
+		local count = 1
+		local sender = ""
+		local server = ""
+		local stuff = ""
+		
+		if interkom.tempcheck[name][count] then 
+			while interkom.tempcheck[name][count] do
+				sender = interkom.tempcheck[name][count].sender
+				server = interkom.tempcheck[name][count].server
+				stuff = interkom.tempcheck[name][count].stuff
+				interkom.checkstuff(name,stuff,false)
+				interkom.tempcheck[name][count] = nil
+				count = count + 1
+			end
+			 
+			local checkhere = minetest.encode_base64(name..sender..server)
+			minetest.chat_send_player(name,core.colorize(green,"## ACCEPTED ")..core.colorize(orange,sender.."@"..server)..core.colorize(green," added to whitelist"))
+			interkom.whitelist[checkhere] = "1"
+			interkom.tempcheck[name][1] = nil
+			interkom.save()
 		else
-		      minetest.chat_send_player(name,core.colorize(orange,"## nothing to do ##"))
+			minetest.chat_send_player(name,core.colorize(orange,"## nothing to do ##"))
 		end
 end,
 })
