@@ -702,6 +702,25 @@ if interkom.serveronline(interkom.name) then
 end
 
 
+-- add button to unified_inventory
+if (minetest.get_modpath("unified_inventory")) then
+	unified_inventory.register_button("interkom", {
+		type = "image",
+		image = "interkom_stuffexchange.png",
+		tooltip = "Interkom - exchange stuff between servers",
+		hide_lite=true,
+		action = function(player)
+			local player_name = player:get_player_name()
+			if not player_name then return end
+			if minetest.check_player_privs(player_name, {interact=true}) then
+			  interkom.gui(player_name,interkom.serverselect[player_name],interkom.playerselect[player_name])
+			else
+			  minetest.chat_send_player(player_name,core.colorize(red, "You need the")..core.colorize(green, " interact")..core.colorize(red," priv, please type")..core.colorize(green," /rules")..core.colorize(red," and search for the keyword"))
+			end
+		end,
+	})
+end
+
 -- start mod by registering server
 interkom.server(true)
 interkom.open()
