@@ -316,7 +316,7 @@ function interkom.server(modus)
 	      local input = interkom.readlines(fname)
 	      table.insert(input,interkom.name.."\n")
 	      minetest.safe_file_write(fname, table.concat(input, "\n"))
-          interkom.create_playerfile
+          interkom.create_playerfile()
 	else
 	  
 	  interkom.delete(fname,interkom.name)
