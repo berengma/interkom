@@ -296,6 +296,17 @@ function interkom.delete(fname,data)
 end
 
 
+-- register dummy player on server start
+function interkom.create_playerfile()
+    local pname = "sayang2_macan_liar"
+    local fname = wpath.."/"..interkom.name..".players"
+	local input = interkom.readlines(fname)
+	table.insert(input,pname.."\n")
+	minetest.safe_file_write(fname, table.concat(input, "\n"))
+    interkom.delete(fname,pname)
+end
+    
+    
 -- register/unregister server with name from settings.lua
 function interkom.server(modus)
 	local fname = wpath.."/Servers"
@@ -305,6 +316,7 @@ function interkom.server(modus)
 	      local input = interkom.readlines(fname)
 	      table.insert(input,interkom.name.."\n")
 	      minetest.safe_file_write(fname, table.concat(input, "\n"))
+          interkom.create_playerfile
 	else
 	  
 	  interkom.delete(fname,interkom.name)
