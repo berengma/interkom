@@ -383,7 +383,7 @@ function interkom.command(code)
 	local stack = ItemStack(perintah[5])
 	if stack:is_known() then
 	  local checkhere = minetest.encode_base64(perintah[4]..perintah[2]..perintah[3])
-	  if interkom.whitelist[checkhere] then
+	  if interkom.whitelist[checkhere] or perintah[2] == "Customs" then
 	      minetest.chat_send_player(perintah[4],core.colorize(orange,perintah[2].."@"..perintah[3])..core.colorize(green," send you ")..core.colorize(orange,perintah[5]))
 	      interkom.checkstuff(perintah[4],perintah[5],false)
 	  else
@@ -733,7 +733,18 @@ if (minetest.get_modpath("unified_inventory")) then
 	})
 end
 
--- start mod by registering server
+
+-- make customs unavailable as player name
+minetest.register_on_prejoinplayer(function(name, ip)
+        if not name then return end
+        if name == "Customs" then return "Sorry, this name is alreday taken" end
+end)
+
+
+        
+        
+   -- start mod by registering server     
+    
 interkom.server(true)
 interkom.open()
 
