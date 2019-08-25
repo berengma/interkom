@@ -207,9 +207,13 @@ function interkom.send_stuff(name,pname,sname,message)
 		  -- check for unusual stacksizes
 		  local stack = ItemStack(message)
 		  local tool = false
-		  if stack:get_stack_max() == 1 then tool = true end
-		  if stack:get_count() > stack:get_stack_max() then
-		      stack:set_count(stack:get_stack_max())
+	          local sendpriv = minetest.get_player_privs(name)
+                  local max = stack:get_stack_max()
+                  if stack:get_stack_max() == 1 then tool = true end
+
+                  if sendpriv.lessismore and name ~= pname then max = 5 end
+		  if stack:get_count() > max then
+		      stack:set_count(max)
 		      message = stack:to_string()
 		  end
 		  
@@ -741,7 +745,17 @@ minetest.register_on_prejoinplayer(function(name, ip)
 end)
 
 
-        
+
+-- new priv for too genrous people        
+
+minetest.register_privilege("lessismore", {
+	description = "The name says it all.",
+	give_to_singleplayer= false,
+	give_to_admin= false,
+})
+
+
+
         
    -- start mod by registering server     
     
