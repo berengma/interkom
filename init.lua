@@ -16,7 +16,7 @@ local path = minetest.get_modpath(minetest.get_current_modname())
 local wpath = minetest.get_worldpath().."/Lilly"
 local timer = 0
 local ctime = interkom.intervall or 5
-local blwait = interkom.blacklistTO or 60
+local blwait = interkom.blacklist or 60
 
 
 
@@ -677,6 +677,7 @@ minetest.register_on_joinplayer(function(player)
 	local input = interkom.readlines(fname)
 	table.insert(input,player:get_player_name().."\n")
 	minetest.safe_file_write(fname, table.concat(input, "\n"))
+    interkom.tempcheck[player:get_player_name()] = {}
 	-- new inventory for sending stuff
 	local inv = minetest.create_detached_inventory(player:get_player_name().."_interkom", {
 		allow_move = function(inv, from_list, from_index, to_list, to_index, count, player)
@@ -698,6 +699,7 @@ minetest.register_on_leaveplayer(function(player)
 	local pname = player:get_player_name()
 	local fname = wpath.."/"..interkom.name..".players"
 	interkom.delete(fname,pname)	
+                                
 end)
 
 
