@@ -1,5 +1,5 @@
 --##################################################
--- New and freshly presented by Gundul: Interkom   
+--      presented by Gundul:   >>> Interkom <<<  
 -- Communication and stuff exchange between servers
 --##################################################
 
@@ -11,6 +11,7 @@ interkom.whitelist = {}
 interkom.tempcheck = {}
 interkom.playerselect = {}
 interkom.serverselect = {}
+interkom.reconnect = false
 
 local path = minetest.get_modpath(minetest.get_current_modname())
 local wpath = minetest.get_worldpath().."/Lilly"
@@ -35,17 +36,37 @@ dofile(path.."/settings.lua")
 
 -- global step for server action queue
 minetest.register_globalstep(function(dtime)
-	timer = timer + dtime;
+	timer = timer + dtime
+                            
 	if timer >= ctime then
+        interkom.online = interkom.file_exists(wpath.."/Servers")
 		if interkom.name then
 		    local aktion = interkom.readlines(wpath.."/"..interkom.name..".action")
 		    if aktion and aktion ~= {} then
-			for i in pairs(aktion) do
-			    interkom.command(aktion[i])
-			    interkom.delete(wpath.."/"..interkom.name..".action",aktion[i])
-			end
+                for i in pairs(aktion) do
+                    interkom.command(aktion[i])
+                    interkom.delete(wpath.."/"..interkom.name..".action",aktion[i])
+                end
 		    end
-		timer = 0
+            if interkom.online and interkom.reconnect then
+                local file = wpath.."/"..interkom.name..".players"
+                local rplayers = minetest.get_connected_players()
+                
+                interkom.server(false)
+                interkom.server(true)
+                            
+                minetest.after(1,function(file)
+                    local input = interkom.readlines(file)
+                    for _,player in ipairs(minetest.get_connected_players()) do            
+                        table.insert(input,player:get_player_name().."\n")
+                        minetest.safe_file_write(file, table.concat(input, "\n"))
+                        interkom.tempcheck[player:get_player_name()] = {}
+                    end
+                    minetest.chat_send_all(core.colorize(orange, ">>> INTERKOM <<<")..core.colorize(green, " Folders are synchronized again, you can continue to use interkom"))
+                end, file)
+            end
+            interkom.reconnect = not interkom.online
+            timer = 0
 		end
 	end
 end)
@@ -518,11 +539,13 @@ minetest.register_chatcommand("stuff", {
 	    local pname = cmd[1]
 	    local sname = cmd[2]
 	    local message = cmd[3]
-	    if name then 
+	    if name and interkom.online then 
 		    interkom.gui(name,interkom.serverselect[name],interkom.playerselect[name])
 		    return
+        elseif name and not interkom.online then
+            minetest.chat_send_player(name,core.colorize(orange,">>> INTERKOM WARNING <<<      ")..core.colorize(green,"Folder sync failed, please contact your admin"))
 	    end
-	    
+	    --[[
 	    if pname and sname and message then
 	      local supported = string.match(message,":")
 	      
@@ -565,7 +588,7 @@ minetest.register_chatcommand("stuff", {
 	    
 		minetest.chat_send_player(name,core.colorize(red,"Syntax error!  please use </stuff playername,server,stuff>"))
 	      
-	    end
+	    end]]
 	    
 	
 end,
@@ -579,7 +602,7 @@ minetest.register_chatcommand("interkom", {
 	func = function(name)
 
 		
-		if interkom.name then
+		if interkom.name and interkom.online then
 		  
 		  minetest.chat_send_player(name,core.colorize(green,"*** interkom loaded. This server is : ")..core.colorize(orange,interkom.name).."\n\n")
 		  
@@ -603,7 +626,7 @@ minetest.register_chatcommand("interkom", {
 		 
 		else
 		  
-		  minetest.chat_send_player(name,core.colorize(red,"Check your config file, no servername set. Interkom NOT loaded !"))
+		  minetest.chat_send_player(name,core.colorize(red,">>> WARNING <<<")..core.colorize(green,"   No servername set or sync error. Interkom NOT active !"))
     
 		end
 
@@ -730,9 +753,11 @@ if (minetest.get_modpath("unified_inventory")) then
 		action = function(player)
 			local player_name = player:get_player_name()
 			if not player_name then return end
-			if minetest.check_player_privs(player_name, {interact=true}) then
+			if minetest.check_player_privs(player_name, {interact=true}) and interkom.online then
 			  interkom.gui(player_name,interkom.serverselect[player_name],interkom.playerselect[player_name])
-			else
+            elseif not interkom.online then
+                minetest.chat_send_player(player_name,core.colorize(orange,"<<< INTERKOM WARNING >>>     ")..core.colorize(green," Folder sync failed, please contact your admin"))
+            else
 			  minetest.chat_send_player(player_name,core.colorize(red, "You need the")..core.colorize(green, " interact")..core.colorize(red," priv, please type")..core.colorize(green," /rules")..core.colorize(red," and search for the keyword"))
 			end
 		end,
@@ -763,4 +788,4 @@ minetest.register_privilege("lessismore", {
     
 interkom.server(true)
 interkom.open()
-
+interkom.online = interkom.file_exists(wpath.."/Servers")
